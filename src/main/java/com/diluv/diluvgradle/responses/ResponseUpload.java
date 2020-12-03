@@ -6,12 +6,14 @@ import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 /**
- * This class defines a POJO that represents the API response for files that have been successfully uploaded to Diluv.
+ * This class defines a POJO that represents the API response for files that have been
+ * successfully uploaded to Diluv.
  */
 public class ResponseUpload {
     
     /**
-     * The upload status for the file. Barring rare exceptions this will always be PENDING for newly uploaded files.
+     * The upload status for the file. Barring rare exceptions this will always be PENDING for
+     * newly uploaded files.
      */
     @Expose
     @SerializedName("status")
@@ -67,7 +69,8 @@ public class ResponseUpload {
     private String sha512;
     
     /**
-     * The download count for the file. Barring rare exceptions this will always be 0 for newly uploaded files.
+     * The download count for the file. Barring rare exceptions this will always be 0 for newly
+     * uploaded files.
      */
     @Expose
     @SerializedName("downloads")
@@ -238,7 +241,7 @@ public class ResponseUpload {
         
         @Expose
         @SerializedName("displayName")
-        private Long displayName;
+        private String displayName;
         
         @Expose
         @SerializedName("avatarURL")
@@ -258,7 +261,7 @@ public class ResponseUpload {
             return this.username;
         }
         
-        public Long getDisplayName () {
+        public String getDisplayName () {
             
             return this.displayName;
         }
