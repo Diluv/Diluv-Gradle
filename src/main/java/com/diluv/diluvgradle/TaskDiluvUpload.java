@@ -130,6 +130,13 @@ public class TaskDiluvUpload extends DefaultTask {
     
     public Map<Long, String> projectRelations = new HashMap<>();
     
+    public TaskDiluvUpload() {
+        
+        // If the build task is present make sure this task is ran after it. This is required
+        // for some environments such as those with parallel tasks enabled.
+        this.mustRunAfter(this.getProject().getTasks().getByName("build"));
+    }
+    
     /**
      * Checks if the upload was successful or not. This is provided as a small helper for use
      * in the build script.
