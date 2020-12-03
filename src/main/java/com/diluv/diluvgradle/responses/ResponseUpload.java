@@ -5,76 +5,133 @@ import java.util.List;
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
+/**
+ * This class defines a POJO that represents the API response for files that have been successfully uploaded to Diluv.
+ */
 public class ResponseUpload {
     
+    /**
+     * The upload status for the file. Barring rare exceptions this will always be PENDING for newly uploaded files.
+     */
     @Expose
     @SerializedName("status")
     private String status;
     
+    /**
+     * The time stamp of when the file status was last changed.
+     */
     @Expose
     @SerializedName("lastStatusChanged")
     private Long lastStatusChanged;
     
+    /**
+     * An ID assigned to the file by Diluv.
+     */
     @Expose
     @SerializedName("id")
     private Long id;
     
+    /**
+     * The name of the file that was uploaded.
+     */
     @Expose
     @SerializedName("name")
     private String name;
     
+    /**
+     * A URL that can be used to download the file from the CDN.
+     */
     @Expose
     @SerializedName("downloadURL")
     private String downloadURL;
     
+    /**
+     * The size of the uploaded file in bytes.
+     */
     @Expose
     @SerializedName("size")
     private Long size;
     
+    /**
+     * The changelog of the uploaded file.
+     */
     @Expose
     @SerializedName("changelog")
     private String changelog;
     
+    /**
+     * The SHA512 hash of the file uploaded to Diluv.
+     */
     @Expose
     @SerializedName("sha512")
     private String sha512;
     
+    /**
+     * The download count for the file. Barring rare exceptions this will always be 0 for newly uploaded files.
+     */
     @Expose
     @SerializedName("downloads")
     private Long downloadCount;
     
+    /**
+     * The release type for the file.
+     */
     @Expose
     @SerializedName("releaseType")
     private String releaseType;
     
+    /**
+     * The type of file that was uploaded.
+     */
     @Expose
     @SerializedName("classifier")
     private String classifier;
     
+    /**
+     * The date the file entry was created.
+     */
     @Expose
     @SerializedName("createdAt")
     private Long createdAt;
     
+    /**
+     * A list of project IDs that have a relation to this file.
+     */
     @Expose
     @SerializedName("dependencies")
     private List<Long> dependencies;
     
+    /**
+     * A list of game versions that the file supports.
+     */
     @Expose
     @SerializedName("gameVersions")
     private List<GameVersion> gameVersions;
     
+    /**
+     * The slug of the game this file belongs to.
+     */
     @Expose
     @SerializedName("gameSlug")
     private String gameSlug;
     
+    /**
+     * The slug of the project type this belongs to.
+     */
     @Expose
     @SerializedName("projectTypeSlug")
     private String projectTypeSlug;
     
+    /**
+     * The slug of the project this belongs to.
+     */
     @Expose
     @SerializedName("projectSlug")
     private String projectSlug;
     
+    /**
+     * The user who uploaded the file.
+     */
     @Expose
     @SerializedName("user")
     private UserInfo uploader;
