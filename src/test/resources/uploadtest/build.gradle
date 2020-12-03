@@ -22,7 +22,7 @@ version = '1.0.924943'
 task testPlugin (type: TaskDiluvUpload){
     
     apiURL = 'http://127.0.0.1:4567'
-    token = "C_RxaYIzXLYxKXD8itdhMUB6J6rKLcvPWpinbpH0ezc"
+    token = "8dfa96ba-44b0-4eb0-930a-fca183e73ec8"
     projectId = 1
     changelog = 'The changelog for my file.'
     uploadFile = jar
