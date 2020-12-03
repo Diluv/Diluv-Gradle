@@ -40,6 +40,10 @@ public class ResponseUpload {
     private String sha512;
     
     @Expose
+    @SerializedName("downloads")
+    private Long downloadCount;
+    
+    @Expose
     @SerializedName("releaseType")
     private String releaseType;
     
@@ -52,8 +56,12 @@ public class ResponseUpload {
     private Long createdAt;
     
     @Expose
+    @SerializedName("dependencies")
+    private List<Long> dependencies;
+    
+    @Expose
     @SerializedName("gameVersions")
-    private final List<GameVersion> gameVersions = null;
+    private List<GameVersion> gameVersions;
     
     @Expose
     @SerializedName("gameSlug")
@@ -68,16 +76,8 @@ public class ResponseUpload {
     private String projectSlug;
     
     @Expose
-    @SerializedName("uploaderUserId")
-    private Long uploaderUserId;
-    
-    @Expose
-    @SerializedName("uploaderUsername")
-    private String uploaderUsername;
-    
-    @Expose
-    @SerializedName("uploaderDisplayName")
-    private String uploaderDisplayName;
+    @SerializedName("user")
+    private UserInfo uploader;
     
     public String getStatus () {
         
@@ -119,6 +119,11 @@ public class ResponseUpload {
         return this.sha512;
     }
     
+    public Long getDownloadCount () {
+        
+        return this.downloadCount;
+    }
+    
     public String getReleaseType () {
         
         return this.releaseType;
@@ -132,6 +137,11 @@ public class ResponseUpload {
     public Long getCreatedAt () {
         
         return this.createdAt;
+    }
+    
+    public List<Long> getDependencies () {
+        
+        return this.dependencies;
     }
     
     public List<GameVersion> getGameVersions () {
@@ -154,19 +164,57 @@ public class ResponseUpload {
         return this.projectSlug;
     }
     
-    public Long getUploaderUserId () {
+    public UserInfo getUploader () {
         
-        return this.uploaderUserId;
+        return this.uploader;
     }
     
-    public String getUploaderUsername () {
+    public static class UserInfo {
         
-        return this.uploaderUsername;
-    }
-    
-    public String getUploaderDisplayName () {
+        @Expose
+        @SerializedName("userId")
+        private Long userId;
         
-        return this.uploaderDisplayName;
+        @Expose
+        @SerializedName("username")
+        private String username;
+        
+        @Expose
+        @SerializedName("displayName")
+        private Long displayName;
+        
+        @Expose
+        @SerializedName("avatarURL")
+        private String avatarURL;
+        
+        @Expose
+        @SerializedName("createdAt")
+        private Long createdAt;
+        
+        public Long getUserId () {
+            
+            return this.userId;
+        }
+        
+        public String getUsername () {
+            
+            return this.username;
+        }
+        
+        public Long getDisplayName () {
+            
+            return this.displayName;
+        }
+        
+        public String getAvatarURL () {
+            
+            return this.avatarURL;
+        }
+        
+        public Long getCreatedAt () {
+            
+            return this.createdAt;
+        }
     }
     
     public static class GameVersion {
