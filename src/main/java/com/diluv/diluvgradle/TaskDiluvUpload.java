@@ -366,7 +366,7 @@ public class TaskDiluvUpload extends DefaultTask {
             if (status == 200) {
                 
                 this.uploadInfo = GSON.fromJson(responseBody, ResponseUpload.class);
-                LOGGER.lifecycle("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
+                LOGGER.info("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
             }
             
             else {

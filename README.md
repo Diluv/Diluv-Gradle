@@ -86,7 +86,6 @@ task publishDiluv (type: TaskDiluvUpload){
 | releaseType       | String            | The release type of the file.                                              |
 | classifier        | String            | The classifier of the file.                                                |
 | createdAt         | Long              | When the file was created.                                                 |
-| ~~dependencies~~  | List<Long>        | Currently deprecated. A list of project IDs with any relation to the file. |
 | gameVersions      | List<GameVersion> | A list of game versions that the file supports.                            |
 | gameSlug          | String            | The slug for the game that the project belongs to.                         |
 | projectTypeSlug   | String            | The slug for the project type.                                             |

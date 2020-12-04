@@ -98,13 +98,6 @@ public class ResponseUpload {
     private Long createdAt;
     
     /**
-     * A list of project IDs that have a relation to this file.
-     */
-    @Expose
-    @SerializedName("dependencies")
-    private List<Long> dependencies;
-    
-    /**
      * A list of game versions that the file supports.
      */
     @Expose
@@ -197,11 +190,6 @@ public class ResponseUpload {
     public Long getCreatedAt () {
         
         return this.createdAt;
-    }
-    
-    public List<Long> getDependencies () {
-        
-        return this.dependencies;
     }
     
     public List<GameVersion> getGameVersions () {
