@@ -17,7 +17,7 @@ apply plugin: 'java'
     
 import com.diluv.diluvgradle.TaskDiluvUpload
 
-version = '1.0.924943'
+version = '1.1.92493'
 
 task testPlugin (type: TaskDiluvUpload){
     
@@ -31,4 +31,6 @@ task testPlugin (type: TaskDiluvUpload){
 	addDependency(2);
 	addOptionalDependency(3);
 	addIncompatibility(4);
+	
+	addLoader('forge');
 }
