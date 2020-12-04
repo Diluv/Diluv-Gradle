@@ -7,9 +7,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -28,6 +30,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 
@@ -42,6 +45,11 @@ import com.google.gson.GsonBuilder;
  * A task used to communicate with Diluv for the purpose of uploading build artifacts.
  */
 public class TaskDiluvUpload extends DefaultTask {
+    
+    /**
+     * Logger for internal use only.
+     */
+    private static final Logger LOGGER = Logging.getLogger("DiluvGradle");
     
     /**
      * Constant gson instance used for deserializing the API responses when files are uploaded.
@@ -128,7 +136,15 @@ public class TaskDiluvUpload extends DefaultTask {
     @Nullable
     public ResponseError errorInfo = null;
     
-    public Map<Long, String> projectRelations = new HashMap<>();
+    /**
+     * Map of project ID to relationship type.
+     */
+    private final Map<Long, String> projectRelations = new HashMap<>();
+    
+    /**
+     * Collection of acceptable loaders for the file.
+     */
+    private final Set<String> loaders = new HashSet<>();
     
     public TaskDiluvUpload() {
         
@@ -187,26 +203,32 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     public void addRelation (long project, String type) {
         
-        final Logger logger = this.getLog();
-        
         if (!PROJECT_RELATION_TYPES.contains(type)) {
             
-            logger.warn("The project relation type {} is not recognized and may not work. The known types are {}.", type, PROJECT_RELATION_TYPES.stream().collect(Collectors.joining(", ")));
+            LOGGER.warn("The project relation type {} is not recognized and may not work. The known types are {}.", type, PROJECT_RELATION_TYPES.stream().collect(Collectors.joining(", ")));
         }
         
         final String existingRelation = this.projectRelations.put(project, type);
-        logger.debug("Added {} relation with project {}.", type, project);
+        LOGGER.debug("Added {} relation with project {}.", type, project);
         
         if (existingRelation != null) {
             
-            logger.warn("Overwriting relation for {} to {}, was previously set as {}.", project, type, existingRelation);
+            LOGGER.warn("Overwriting relation for {} to {}, was previously set as {}.", project, type, existingRelation);
+        }
+    }
+    
+    public void addLoader (String loader) {
+        
+        LOGGER.debug("Adding loader tag {} to project {}.", loader, this.projectId);
+        
+        if (!this.loaders.add(loader)) {
+            
+            LOGGER.warn("The loader tag {} was already applied for project {}.", loader, this.projectId);
         }
     }
     
     @TaskAction
     public void apply () {
-        
-        final Logger logger = this.getLog();
         
         try {
             
@@ -230,7 +252,7 @@ public class TaskDiluvUpload extends DefaultTask {
             // Only semantic versioning is allowed.
             if (!SEM_VER.matcher(this.projectVersion).matches()) {
                 
-                logger.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.projectVersion);
+                LOGGER.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.projectVersion);
                 throw new GradleException("Project version '" + this.projectVersion + "' is not semantic versioning compatible. The file can not be uploaded. https://semver.org");
             }
             
@@ -245,7 +267,7 @@ public class TaskDiluvUpload extends DefaultTask {
             // Ensure the file actually exists before trying to upload it.
             if (file == null || !file.exists()) {
                 
-                logger.error("The upload file is missing or null. {}", this.uploadFile);
+                LOGGER.error("The upload file is missing or null. {}", this.uploadFile);
                 throw new GradleException("The upload file is missing or null. " + String.valueOf(this.uploadFile));
             }
             
@@ -260,14 +282,14 @@ public class TaskDiluvUpload extends DefaultTask {
                 
                 catch (final IOException e) {
                     
-                    logger.error("Failed to upload the file!", e);
+                    LOGGER.error("Failed to upload the file!", e);
                     throw new GradleException("Failed to upload the file!", e);
                 }
             }
             
             catch (final URISyntaxException e) {
                 
-                logger.error("Invalid endpoint URI!", e);
+                LOGGER.error("Invalid endpoint URI!", e);
                 throw new GradleException("Invalid endpoint URI!", e);
             }
         }
@@ -276,8 +298,8 @@ public class TaskDiluvUpload extends DefaultTask {
             
             if (this.failSilently) {
                 
-                logger.info("Failed to upload to Diluv. Check logs for more info.");
-                logger.error("Diluv upload failed silently.", e);
+                LOGGER.info("Failed to upload to Diluv. Check logs for more info.");
+                LOGGER.error("Diluv upload failed silently.", e);
             }
             
             else {
@@ -296,8 +318,7 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     public void upload (URI endpoint, File file) throws IOException {
         
-        final Logger logger = this.getLog();
-        logger.debug("Uploading {} to {}.", file.getPath(), this.getUploadEndpoint());
+        LOGGER.debug("Uploading {} to {}.", file.getPath(), this.getUploadEndpoint());
         
         final HttpClient client = HttpClientBuilder.create().setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.IGNORE_COOKIES).build()).build();
         final HttpPost post = new HttpPost(endpoint);
@@ -329,26 +350,26 @@ public class TaskDiluvUpload extends DefaultTask {
             final int status = response.getStatusLine().getStatusCode();
             final String responseBody = EntityUtils.toString(response.getEntity());
             
-            logger.debug("Diluv Response Code: {}", status);
-            logger.debug("Diluv Response Body: {}", responseBody);
+            LOGGER.debug("Diluv Response Code: {}", status);
+            LOGGER.debug("Diluv Response Body: {}", responseBody);
             
             if (status == 200) {
                 
                 this.uploadInfo = GSON.fromJson(responseBody, ResponseUpload.class);
-                logger.lifecycle("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
+                LOGGER.lifecycle("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
             }
             
             else {
                 
                 this.errorInfo = GSON.fromJson(responseBody, ResponseError.class);
-                logger.error("Upload failed! Status: {} Reson: {}", status, this.errorInfo.getMessage());
+                LOGGER.error("Upload failed! Status: {} Reson: {}", status, this.errorInfo.getMessage());
                 throw new GradleException("Upload failed! Status: " + status + " Reson: " + this.errorInfo.getMessage());
             }
         }
         
         catch (final IOException e) {
             
-            logger.error("Failure to upload file!", e);
+            LOGGER.error("Failure to upload file!", e);
             throw e;
         }
     }
@@ -452,11 +473,5 @@ public class TaskDiluvUpload extends DefaultTask {
         
         project.getLogger().debug("Using fallback game version {}.", version);
         return version;
-    }
-    
-    private Logger getLog () {
-        
-        // TODO Move to our own logger, or make this a future option?
-        return this.getProject().getLogger();
     }
 }
