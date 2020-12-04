@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -117,7 +116,7 @@ public class TaskDiluvUpload extends DefaultTask {
     /**
      * The version of the game the file supports.
      */
-    public String gameVersion;
+    public Set<String> gameVersions = new HashSet<>();
     
     /**
      * Allows build to continue even if the upload failed.
@@ -151,6 +150,16 @@ public class TaskDiluvUpload extends DefaultTask {
         // If the build task is present make sure this task is ran after it. This is required
         // for some environments such as those with parallel tasks enabled.
         this.mustRunAfter(this.getProject().getTasks().getByName("build"));
+    }
+    
+    public void addGameVersion (String version) {
+        
+        LOGGER.debug("Adding game version {} to project {}.", version, this.projectId);
+        
+        if (!this.gameVersions.add(version)) {
+            
+            LOGGER.warn("The game version {} was already applied for project {}.", version, this.projectId);
+        }
     }
     
     /**
@@ -233,13 +242,17 @@ public class TaskDiluvUpload extends DefaultTask {
         try {
             
             // Attempt to automatically resolve the game version if one wasn't specified.
-            if (this.gameVersion == null) {
+            if (this.gameVersions.isEmpty()) {
                 
-                this.gameVersion = detectGameVersion(this.getProject());
+                final String detectedVersion = detectGameVersion(this.getProject());
                 
-                if (this.gameVersion == null) {
+                if (detectedVersion == null) {
                     
-                    throw new GradleException("Can not upload to Diluv. gameVersion is null and could not be detected.");
+                    throw new GradleException("Can not upload to Diluv. No game version specified.");
+                }
+                
+                else {
+                    this.addGameVersion(detectedVersion);
                 }
             }
             
@@ -334,12 +347,9 @@ public class TaskDiluvUpload extends DefaultTask {
         data.setChangelog(this.changelog);
         data.setReleaseType(this.releaseType);
         data.setClassifier(this.classifier);
-        data.getGameVersions().add(this.gameVersion);
-        
-        for (final Entry<Long, String> relation : this.projectRelations.entrySet()) {
-            
-            data.getDependencies().add(new FileDependency(relation.getKey(), relation.getValue()));
-        }
+        data.setGameVersions(this.gameVersions);
+        data.setLoaders(this.loaders);
+        data.setDependencies(this.projectRelations.entrySet().stream().map(e -> new FileDependency(e.getKey(), e.getValue())).collect(Collectors.toList()));
         
         form.addTextBody("data", GSON.toJson(data), ContentType.APPLICATION_JSON);
         post.setEntity(form.build());
@@ -372,12 +382,6 @@ public class TaskDiluvUpload extends DefaultTask {
             LOGGER.error("Failure to upload file!", e);
             throw e;
         }
-    }
-    
-    @Override
-    public String toString () {
-        
-        return "TaskDiluvUpload [apiURL=" + this.apiURL + ", token=" + (this.token != null) + ", projectId=" + this.projectId + ", projectVersion=" + this.projectVersion + ", changelog=" + this.changelog + ", uploadFile=" + this.uploadFile + ", releaseType=" + this.releaseType + ", classifier=" + this.classifier + ", gameVersion=" + this.gameVersion + "]";
     }
     
     /**

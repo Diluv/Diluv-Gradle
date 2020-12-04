@@ -36,7 +36,7 @@ task publishDiluv (type: TaskDiluvUpload){
     projectId = 123456
     projectVersion = '1.0.0'
     uploadFile = jar // This is the java jar task
-    gameVersion = '1.12.2'
+    addGameVersion('1.16.4')
 }
 ```
 
@@ -52,12 +52,13 @@ task publishDiluv (type: TaskDiluvUpload){
 | uploadFile                       | true     | The file to upload. Can be an actual file or a file task.                           |
 | releaseType                      | false    | The release status of the file. Defaults to "alpha".                                |
 | classifier                       | false    | The type of file being uploaded. Defaults to binary.                                |
-| gameVersion                      | true     | The version of the game the file is for. Comma separated for multiple.              |
 | failSilently                     | false    | When true an upload failure will not fail your build.                               |
+| addGameVersion(version)          | true     | Adds a game version that this file supports. At least one is needed.                |
 | addDependency(projectId)         | false    | Marks a project as a required dependency.                                           |
 | addOptionalDependency(projectId) | false    | Marks a project as an optional/soft dependency.                                     |
 | addIncompatibility(projectId)    | false    | Marks a project as being incompatible with this file.                               |
 | addRelation(projectId, type)     | false    | Adds a project relationship to the file. Only some relationship types are accepted. |
+| addLoader(loader)                | false    | Allows supported mod loaders to be specified for the file.                          |
 
 **Note:** In some scenarios the `gameVersion` property can be detected automatically. For example the ForgeGradle and LoomGradle environments. For best results you should set this property manually.
 
