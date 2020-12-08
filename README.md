@@ -107,7 +107,6 @@ task publishDiluv (type: TaskDiluvUpload){
 | version  | String | The version of the game.                    |
 | type     | String | The type of release this is.                |
 | released | Long   | The timestamp of when the file was created. |
-|          |        |                                             |
 
 ### UserInfo
 
