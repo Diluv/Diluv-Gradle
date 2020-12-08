@@ -1,6 +1,8 @@
 package com.diluv.diluvgradle.request;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 
 import com.google.gson.annotations.Expose;
@@ -10,41 +12,35 @@ public class RequestData {
     
     @Expose
     @SerializedName("version")
-    public String version;
+    private String version;
     
     @Expose
     @SerializedName("changelog")
-    public String changelog;
+    private String changelog;
     
     @Expose
     @SerializedName("releaseType")
-    public String releaseType;
+    private String releaseType;
     
     @Expose
     @SerializedName("classifier")
-    public String classifier;
+    private String classifier;
     
     @Expose
     @SerializedName("gameVersions")
-    public List<String> gameVersions = new ArrayList<>();
+    private Collection<String> gameVersions = new HashSet<>();
+    
+    @Expose
+    @SerializedName("loaders")
+    private Collection<String> loaders = new HashSet<>();
     
     @Expose
     @SerializedName("dependencies")
-    public List<FileDependency> dependencies = new ArrayList<>();
-    
-    public String getVersion () {
-        
-        return this.version;
-    }
+    private Collection<FileDependency> dependencies = new ArrayList<>();
     
     public void setVersion (String version) {
         
         this.version = version;
-    }
-    
-    public String getChangelog () {
-        
-        return this.changelog;
     }
     
     public void setChangelog (String changelog) {
@@ -52,19 +48,9 @@ public class RequestData {
         this.changelog = changelog;
     }
     
-    public String getReleaseType () {
-        
-        return this.releaseType;
-    }
-    
     public void setReleaseType (String releaseType) {
         
         this.releaseType = releaseType;
-    }
-    
-    public String getClassifier () {
-        
-        return this.classifier;
     }
     
     public void setClassifier (String classifier) {
@@ -72,19 +58,14 @@ public class RequestData {
         this.classifier = classifier;
     }
     
-    public List<String> getGameVersions () {
-        
-        return this.gameVersions;
-    }
-    
-    public void setGameVersions (List<String> gameVersions) {
+    public void setGameVersions (Collection<String> gameVersions) {
         
         this.gameVersions = gameVersions;
     }
     
-    public List<FileDependency> getDependencies () {
+    public void setLoaders (Collection<String> loaders) {
         
-        return this.dependencies;
+        this.loaders = loaders;
     }
     
     public void setDependencies (List<FileDependency> dependencies) {
