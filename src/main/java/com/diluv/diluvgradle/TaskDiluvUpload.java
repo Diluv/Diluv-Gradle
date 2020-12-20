@@ -30,7 +30,8 @@ import org.gradle.api.logging.Logging;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 
-import com.diluv.diluvgradle.request.FileDependency;
+import com.diluv.diluvgradle.request.FileProjectRelation;
+import com.diluv.diluvgradle.request.RelationType;
 import com.diluv.diluvgradle.request.RequestData;
 import com.diluv.diluvgradle.responses.ResponseError;
 import com.diluv.diluvgradle.responses.ResponseUpload;
@@ -122,7 +123,7 @@ public class TaskDiluvUpload extends DefaultTask {
     /**
      * Map of project ID to relationship type.
      */
-    private final Map<Long, String> projectRelations = new HashMap<>();
+    private final Map<Long, RelationType> projectRelations = new HashMap<>();
     
     /**
      * Collection of acceptable loaders for the file.
@@ -168,7 +169,7 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     public void addDependency (long project) {
         
-        this.addRelation(project, Constants.RELATION_REQUIRED);
+        this.addRelation(project, RelationType.REQUIRED);
     }
     
     /**
@@ -178,7 +179,7 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     public void addOptionalDependency (long project) {
         
-        this.addRelation(project, Constants.RELATION_OPTIONAL);
+        this.addRelation(project, RelationType.OPTIONAL);
     }
     
     /**
@@ -188,7 +189,7 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     public void addIncompatibility (long project) {
         
-        this.addRelation(project, Constants.RELATION_INCOMPATIBLE);
+        this.addRelation(project, RelationType.INCOMPATIBLE);
     }
     
     /**
@@ -198,14 +199,9 @@ public class TaskDiluvUpload extends DefaultTask {
      * @param project The project to add a relation with.
      * @param type The type of relation to add.
      */
-    public void addRelation (long project, String type) {
+    private void addRelation (long project, RelationType type) {
         
-        if (!Constants.PROJECT_RELATION_TYPES.contains(type)) {
-            
-            this.log.warn("The project relation type {} is not recognized and may not work. The known types are {}.", type, Constants.PROJECT_RELATION_TYPES.stream().collect(Collectors.joining(", ")));
-        }
-        
-        final String existingRelation = this.projectRelations.put(project, type);
+        final RelationType existingRelation = this.projectRelations.put(project, type);
         this.log.debug("Added {} relation with project {}.", type, project);
         
         if (existingRelation != null) {
@@ -337,7 +333,7 @@ public class TaskDiluvUpload extends DefaultTask {
         data.setClassifier(this.classifier);
         data.setGameVersions(this.gameVersions);
         data.setLoaders(this.loaders);
-        data.setDependencies(this.projectRelations.entrySet().stream().map(e -> new FileDependency(e.getKey(), e.getValue())).collect(Collectors.toList()));
+        data.setDependencies(this.projectRelations.entrySet().stream().map(e -> new FileProjectRelation(e.getKey(), e.getValue())).collect(Collectors.toList()));
         
         form.addTextBody("data", this.gson.toJson(data), ContentType.APPLICATION_JSON);
         post.setEntity(form.build());

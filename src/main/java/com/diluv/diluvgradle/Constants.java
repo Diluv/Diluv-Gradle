@@ -1,7 +1,5 @@
 package com.diluv.diluvgradle;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.regex.Pattern;
 
 public class Constants {
@@ -11,13 +9,4 @@ public class Constants {
      * https://semver.org/.
      */
     public static final Pattern SEM_VER = Pattern.compile("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$");
-    
-    public static final String RELATION_REQUIRED = "required";
-    public static final String RELATION_OPTIONAL = "optional";
-    public static final String RELATION_INCOMPATIBLE = "incompatible";
-    
-    /**
-     * A list of recognized project relationship types.
-     */
-    public static final List<String> PROJECT_RELATION_TYPES = Arrays.asList(RELATION_REQUIRED, RELATION_OPTIONAL, RELATION_INCOMPATIBLE);
 }

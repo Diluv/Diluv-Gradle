@@ -36,7 +36,7 @@ public class RequestData {
     
     @Expose
     @SerializedName("dependencies")
-    private Collection<FileDependency> dependencies = new ArrayList<>();
+    private Collection<FileProjectRelation> dependencies = new ArrayList<>();
     
     public void setVersion (String version) {
         
@@ -68,7 +68,7 @@ public class RequestData {
         this.loaders = loaders;
     }
     
-    public void setDependencies (List<FileDependency> dependencies) {
+    public void setDependencies (List<FileProjectRelation> dependencies) {
         
         this.dependencies = dependencies;
     }
