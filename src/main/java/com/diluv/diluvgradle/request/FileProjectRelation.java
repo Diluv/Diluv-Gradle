@@ -35,4 +35,14 @@ public final class FileProjectRelation {
         this.projectId = projectId;
         this.type = type;
     }
+    
+    public Long getProjectId () {
+        
+        return this.projectId;
+    }
+    
+    public RelationType getRelationType () {
+        
+        return this.type;
+    }
 }

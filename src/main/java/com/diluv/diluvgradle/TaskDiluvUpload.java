@@ -5,11 +5,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -27,6 +22,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.ExtraPropertiesExtension;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 
@@ -56,6 +52,11 @@ public class TaskDiluvUpload extends DefaultTask {
     private final Gson gson;
     
     /**
+     * Represents the file upload data attached to the API call when uploading the file.
+     */
+    private final RequestData request;
+    
+    /**
      * The URL used for communicating with Diluv. This should not be changed unless you know
      * what you're doing. It's main use case is for debug, development, or advanced user
      * configurations.
@@ -63,45 +64,20 @@ public class TaskDiluvUpload extends DefaultTask {
     public String apiURL = "https://api.diluv.com";
     
     /**
-     * The API token used to communicate with Diluv. Make sure you keep this public!
-     */
-    public String token;
-    
-    /**
-     * The ID of the project to upload the file to.
+     * The ID of the project to upload to.
      */
     public String projectId;
     
     /**
-     * The version of the project being uploaded.
+     * The API token used to communicate with Diluv. Make sure you keep this public!
      */
-    public String projectVersion;
-    
-    /**
-     * The change log data to associate with the new file.
-     */
-    public String changelog;
+    public String token;
     
     /**
      * The upload artifact file. This can be any object type that is resolvable by
      * {@link #resolveFile(Project, Object, File)}.
      */
     public Object uploadFile;
-    
-    /**
-     * The release type for the project.
-     */
-    public String releaseType = "alpha";
-    
-    /**
-     * The type of file being uploaded.
-     */
-    public String classifier = "binary";
-    
-    /**
-     * The version of the game the file supports.
-     */
-    public Set<String> gameVersions = new HashSet<>();
     
     /**
      * Allows build to continue even if the upload failed.
@@ -112,54 +88,75 @@ public class TaskDiluvUpload extends DefaultTask {
      * The response from the API when the file was uploaded successfully.
      */
     @Nullable
-    public ResponseUpload uploadInfo = null;
+    private ResponseUpload uploadInfo = null;
     
     /**
      * The response from the API when the file failed to upload.
      */
     @Nullable
-    public ResponseError errorInfo = null;
-    
-    /**
-     * Map of project ID to relationship type.
-     */
-    private final Map<Long, RelationType> projectRelations = new HashMap<>();
-    
-    /**
-     * Collection of acceptable loaders for the file.
-     */
-    private final Set<String> loaders = new HashSet<>();
+    private ResponseError errorInfo = null;
     
     public TaskDiluvUpload() {
         
         this.log = Logging.getLogger("DiluvGradle");
-        
         this.gson = new GsonBuilder().create();
+        this.request = new RequestData();
         
         // If the build task is present make sure this task is ran after it. This is required
         // for some environments such as those with parallel tasks enabled.
         this.mustRunAfter(this.getProject().getTasks().getByName("build"));
     }
     
+    /**
+     * Adds a compatible game version to the file.
+     * 
+     * @param version The compatible game version.
+     */
     public void addGameVersion (String version) {
         
-        this.log.debug("Adding game version {} to project {}.", version, this.projectId);
+        this.log.debug("Adding game version {}.", version);
         
-        if (!this.gameVersions.add(version)) {
+        if (!this.request.addGameVersion(version)) {
             
-            this.log.warn("The game version {} was already applied for project {}.", version, this.projectId);
+            this.log.warn("The game version {} was not be applied.", version);
         }
     }
     
     /**
-     * Checks if the upload was successful or not. This is provided as a small helper for use
-     * in the build script.
+     * Sets the version of the file being uploaded.
      * 
-     * @return Whether or not the file was successfully uploaded.
+     * @param version The version of the file being uploaded.
      */
-    public boolean wasUploadSuccessful () {
+    public void setFileVersion (String version) {
         
-        return this.uploadInfo != null && this.errorInfo == null;
+        if (this.request.hasVersion()) {
+            
+            this.log.debug("Replacing file version {} with {}.", this.request.getVersion(), version);
+        }
+        
+        this.request.setVersion(version);
+    }
+    
+    /**
+     * Sets the release type of the file being uploaded.
+     * 
+     * @param type The type of release.
+     */
+    public void setReleaseType (String type) {
+        
+        this.log.debug("Setting release type to {}.", type);
+        this.request.setReleaseType(type);
+    }
+    
+    /**
+     * Sets the classifier type of the file being uploaded.
+     * 
+     * @param classifier The classifier of the file being uploaded.
+     */
+    public void setClassifier (String classifier) {
+        
+        this.log.debug("Setting classifier to {}.", classifier);
+        this.request.setClassifier(classifier);
     }
     
     /**
@@ -201,7 +198,7 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     private void addRelation (long project, RelationType type) {
         
-        final RelationType existingRelation = this.projectRelations.put(project, type);
+        final FileProjectRelation existingRelation = this.request.addRelation(new FileProjectRelation(project, type));
         this.log.debug("Added {} relation with project {}.", type, project);
         
         if (existingRelation != null) {
@@ -210,14 +207,76 @@ public class TaskDiluvUpload extends DefaultTask {
         }
     }
     
+    /**
+     * Adds a loader tag for the file.
+     * 
+     * @param loader The loader to allow.
+     */
     public void addLoader (String loader) {
         
-        this.log.debug("Adding loader tag {} to project {}.", loader, this.projectId);
+        this.log.debug("Adding loader tag {}.", loader);
         
-        if (!this.loaders.add(loader)) {
+        if (!this.request.addLoader(loader)) {
             
-            this.log.warn("The loader tag {} was already applied for project {}.", loader, this.projectId);
+            this.log.warn("The loader tag {} was already applied.", loader);
         }
+    }
+    
+    /**
+     * Checks if the upload was successful or not. This is provided as a small helper for use
+     * in the build script.
+     * 
+     * @return Whether or not the file was successfully uploaded.
+     */
+    public boolean wasUploadSuccessful () {
+        
+        return this.uploadInfo != null && this.errorInfo == null;
+    }
+    
+    /**
+     * Attempts to get the upload info for this task. If the file has not been uploaded yet an
+     * exception will be raised.
+     * 
+     * @return If the file was uploaded successfully the upload info response will be returned.
+     *         Otherwise null.
+     */
+    @Nullable
+    public ResponseUpload getUploadInfo () {
+        
+        if (this.uploadInfo != null) {
+            
+            return this.uploadInfo;
+        }
+        
+        else if (this.errorInfo == null) {
+            
+            throw new GradleException("Attempted to access upload info before file was uploaded. The info is not available at this stage!");
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Attempts to get the upload error info for this task. Attempting to use this before the
+     * file has been uploaded will cause an exception to be raised.
+     * 
+     * @return If the file was uploaded unsuccessfully the error info will be returned.
+     *         Otherwise null.
+     */
+    @Nullable
+    public ResponseError getErrorInfo () {
+        
+        if (this.errorInfo != null) {
+            
+            return this.errorInfo;
+        }
+        
+        else if (this.uploadInfo == null) {
+            
+            throw new GradleException("Attempted to access upload error info before file was uploaded. The info is not available at this stage!");
+        }
+        
+        return null;
     }
     
     @TaskAction
@@ -226,37 +285,47 @@ public class TaskDiluvUpload extends DefaultTask {
         try {
             
             // Attempt to automatically resolve the game version if one wasn't specified.
-            if (this.gameVersions.isEmpty()) {
+            if (!this.request.hasGameVersion()) {
                 
-                final String detectedVersion = this.detectGameVersion();
+                this.detectGameVersionForge();
+                this.detectGameVersionFabric();
+            }
+            
+            // Check the game version again, if it's still not there the upload has failed.
+            if (!this.request.hasGameVersion()) {
                 
-                if (detectedVersion == null) {
+                throw new GradleException("Can not upload to Diluv. No game version specified.");
+            }
+            
+            // Use project version from Gradle if no version was specified.
+            if (this.request.getVersion() == null || this.request.getVersion().isEmpty()) {
+                
+                final String projectBuildVersion = this.getProject().getVersion().toString();
+                
+                if (projectBuildVersion != null && !projectBuildVersion.isEmpty()) {
                     
-                    throw new GradleException("Can not upload to Diluv. No game version specified.");
+                    this.log.debug("File version will fall back to build version of {}.", projectBuildVersion);
+                    this.request.setVersion(projectBuildVersion);
                 }
                 
                 else {
-                    this.addGameVersion(detectedVersion);
+                    
+                    throw new GradleException("No file version was specified, and the fallback Gradle build version could not be found.");
                 }
             }
             
-            // Use project version if no version is specified.
-            if (this.projectVersion == null) {
-                
-                this.projectVersion = this.getProject().getVersion().toString();
-            }
-            
             // Only semantic versioning is allowed.
-            if (!Constants.SEM_VER.matcher(this.projectVersion).matches()) {
+            if (!Constants.SEM_VER.matcher(this.request.getVersion()).matches()) {
                 
-                this.log.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.projectVersion);
-                throw new GradleException("Project version '" + this.projectVersion + "' is not semantic versioning compatible. The file can not be uploaded. https://semver.org");
+                this.log.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.request.getVersion());
+                throw new GradleException("Project version '" + this.request.getVersion() + "' is not semantic versioning compatible. The file can not be uploaded. https://semver.org");
             }
             
             // Set a default changelog if the dev hasn't provided one.
-            if (this.changelog == null) {
+            if (!this.request.hasChangelog()) {
                 
-                this.changelog = "The project has been updated to " + this.getProject() + ". No changelog was specified.";
+                this.request.setChangelog("The project has been updated to " + this.request.getVersion() + ".");
+                this.log.warn("No changelog was specified. A default one will be used. This is not recommended.");
             }
             
             final File file = resolveFile(this.getProject(), this.uploadFile, null);
@@ -325,17 +394,7 @@ public class TaskDiluvUpload extends DefaultTask {
         final MultipartEntityBuilder form = MultipartEntityBuilder.create();
         form.addBinaryBody("file", file);
         form.addTextBody("filename", file.getName());
-        
-        final RequestData data = new RequestData();
-        data.setVersion(this.projectVersion);
-        data.setChangelog(this.changelog);
-        data.setReleaseType(this.releaseType);
-        data.setClassifier(this.classifier);
-        data.setGameVersions(this.gameVersions);
-        data.setLoaders(this.loaders);
-        data.setDependencies(this.projectRelations.entrySet().stream().map(e -> new FileProjectRelation(e.getKey(), e.getValue())).collect(Collectors.toList()));
-        
-        form.addTextBody("data", this.gson.toJson(data), ContentType.APPLICATION_JSON);
+        form.addTextBody("data", this.gson.toJson(this.request), ContentType.APPLICATION_JSON);
         post.setEntity(form.build());
         
         try {
@@ -416,51 +475,67 @@ public class TaskDiluvUpload extends DefaultTask {
     }
     
     /**
-     * Attempts to automatically detect a game version based on the script environment. This is
-     * intended as a fallback and should never override user specified data.
-     * 
-     * @param project The Gradle project to look through.
-     * @return A detected game version string. This will be null if nothing was found.
+     * Attempts to detect the game version by detecting ForgeGradle data in the build
+     * environment.
      */
-    @Nullable
-    public final String detectGameVersion () {
+    private void detectGameVersionForge () {
         
-        final Project project = this.getProject();
-        String version = null;
-        
-        // ForgeGradle will store the game version here.
-        // https://github.com/MinecraftForge/ForgeGradle/blob/9252ffe1fa5c2acf133f35d169ba4ffc84e6a9fd/src/userdev/java/net/minecraftforge/gradle/userdev/MinecraftUserRepo.java#L179
-        if (project.getExtensions().getExtraProperties().has("MC_VERSION")) {
+        try {
             
-            version = project.getExtensions().getExtraProperties().get("MC_VERSION").toString();
-        }
-        
-        else {
+            final ExtraPropertiesExtension extraProps = this.getProject().getExtensions().getExtraProperties();
             
-            // Loom/Fabric Gradle detection.
-            try {
+            // ForgeGradle will store the game version here.
+            // https://github.com/MinecraftForge/ForgeGradle/blob/9252ffe1fa5c2acf133f35d169ba4ffc84e6a9fd/src/userdev/java/net/minecraftforge/gradle/userdev/MinecraftUserRepo.java#L179
+            if (extraProps.has("MC_VERSION")) {
                 
-                // Using reflection because loom isn't always available.
-                final Class<?> loomType = Class.forName("net.fabricmc.loom.LoomGradleExtension");
-                final Method getProvider = loomType.getMethod("getMinecraftProvider");
+                final String forgeGameVersion = extraProps.get("MC_VERSION").toString();
                 
-                final Class<?> minecraftProvider = Class.forName("net.fabricmc.loom.providers.MinecraftProvider");
-                final Method getVersion = minecraftProvider.getMethod("getMinecraftVersion");
-                
-                final Object loomExt = project.getExtensions().getByType(loomType);
-                final Object loomProvider = getProvider.invoke(loomExt);
-                final Object loomVersion = getVersion.invoke(loomProvider);
-                
-                version = loomVersion.toString();
-            }
-            
-            catch (final Exception e) {
-                
-                this.log.debug("Failed to detect loom game version.", e);
+                if (forgeGameVersion != null && !forgeGameVersion.isEmpty()) {
+                    
+                    this.log.debug("Detected fallback game version {} from ForgeGradle.", forgeGameVersion);
+                    this.addGameVersion(forgeGameVersion);
+                }
             }
         }
         
-        this.log.debug("Using fallback game version {}.", version);
-        return version;
+        catch (final Exception e) {
+            
+            this.log.debug("Failed to detect ForgeGradle game version.", e);
+        }
+    }
+    
+    /**
+     * Attempts to detect the game version by detecting LoomGradle data in the build
+     * environment.
+     */
+    private void detectGameVersionFabric () {
+        
+        // Loom/Fabric Gradle detection.
+        try {
+            
+            // Using reflection because loom isn't always available.
+            final Class<?> loomType = Class.forName("net.fabricmc.loom.LoomGradleExtension");
+            final Method getProvider = loomType.getMethod("getMinecraftProvider");
+            
+            final Class<?> minecraftProvider = Class.forName("net.fabricmc.loom.providers.MinecraftProvider");
+            final Method getVersion = minecraftProvider.getMethod("getMinecraftVersion");
+            
+            final Object loomExt = this.getProject().getExtensions().getByType(loomType);
+            final Object loomProvider = getProvider.invoke(loomExt);
+            final Object loomVersion = getVersion.invoke(loomProvider);
+            
+            final String loomGameVersion = loomVersion.toString();
+            
+            if (loomGameVersion != null && !loomGameVersion.isEmpty()) {
+                
+                this.log.debug("Detected fallback game version {} from Loom.", loomGameVersion);
+                this.addGameVersion(loomGameVersion);
+            }
+        }
+        
+        catch (final Exception e) {
+            
+            this.log.debug("Failed to detect Loom game version.", e);
+        }
     }
 }
