@@ -33,6 +33,7 @@ import com.diluv.diluvgradle.responses.ResponseError;
 import com.diluv.diluvgradle.responses.ResponseUpload;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.gradle.api.tasks.Internal;
 
 /**
  * A task used to communicate with Diluv for the purpose of uploading build artifacts.
@@ -85,7 +86,7 @@ public class TaskDiluvUpload extends DefaultTask {
     public boolean failSilently = false;
     
     /**
-     * If enabled the plugin-side semantic version check will be ignored. 
+     * If enabled the plugin-side semantic version check will be ignored.
      */
     public boolean ignoreSemVer = false;
     
@@ -93,12 +94,14 @@ public class TaskDiluvUpload extends DefaultTask {
      * The response from the API when the file was uploaded successfully.
      */
     @Nullable
+    @Internal
     private ResponseUpload uploadInfo = null;
     
     /**
      * The response from the API when the file failed to upload.
      */
     @Nullable
+    @Internal
     private ResponseError errorInfo = null;
     
     public TaskDiluvUpload() {
@@ -132,7 +135,7 @@ public class TaskDiluvUpload extends DefaultTask {
      * 
      * @param version The version of the file being uploaded.
      */
-    public void setFileVersion (String version) {
+    public void setVersion (String version) {
         
         if (this.request.hasVersion()) {
             
@@ -140,6 +143,17 @@ public class TaskDiluvUpload extends DefaultTask {
         }
         
         this.request.setVersion(version);
+    }
+    
+    /**
+     * Sets the changelog for the file.
+     * 
+     * @param changelog The changelog for the file.
+     */
+    public void setChangelog (String changelog) {
+        
+        this.request.setChangelog(changelog);
+        this.log.debug("Setting changelog to: '{}'", changelog);
     }
     
     /**
