@@ -23,6 +23,7 @@ import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.plugins.ExtraPropertiesExtension;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 
@@ -33,7 +34,6 @@ import com.diluv.diluvgradle.responses.ResponseError;
 import com.diluv.diluvgradle.responses.ResponseUpload;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.gradle.api.tasks.Internal;
 
 /**
  * A task used to communicate with Diluv for the purpose of uploading build artifacts.
