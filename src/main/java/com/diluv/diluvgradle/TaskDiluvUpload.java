@@ -85,6 +85,11 @@ public class TaskDiluvUpload extends DefaultTask {
     public boolean failSilently = false;
     
     /**
+     * If enabled the plugin-side semantic version check will be ignored. 
+     */
+    public boolean ignoreSemVer = false;
+    
+    /**
      * The response from the API when the file was uploaded successfully.
      */
     @Nullable
@@ -315,7 +320,7 @@ public class TaskDiluvUpload extends DefaultTask {
             }
             
             // Only semantic versioning is allowed.
-            if (!Constants.SEM_VER.matcher(this.request.getVersion()).matches()) {
+            if (!this.ignoreSemVer && !Constants.SEM_VER.matcher(this.request.getVersion()).matches()) {
                 
                 this.log.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.request.getVersion());
                 throw new GradleException("Project version '" + this.request.getVersion() + "' is not semantic versioning compatible. The file can not be uploaded. https://semver.org");
