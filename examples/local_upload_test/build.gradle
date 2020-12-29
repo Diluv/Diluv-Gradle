@@ -22,9 +22,10 @@ version = "1.1.${Math.abs(rand.nextInt())}"
 
 task testPlugin (type: TaskDiluvUpload){
     
-    apiURL = 'http://127.0.0.1:4567'
-    token = "8dfa96ba-44b0-4eb0-930a-fca183e73ec8"
-    projectId = 1
+    apiURL = project.findProperty('diluv_api');
+    token = project.findProperty('diluv_token');
+    projectId = project.findProperty('diluv_project');
+	
     uploadFile = jar
 	
 	setChangelog('Hello, this is the changelog for the file.');
