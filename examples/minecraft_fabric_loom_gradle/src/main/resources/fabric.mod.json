@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "diluvtestmod",
+  "version": "${version}",
+  "name": "Diluv Test Mod",
+  "description": "Fabric mod for testing DiluvGradle.",
+  "authors": [
+    "Darkhax",
+	"lclc98",
+	"Jaredlll08"
+  ],
+  "license": "LGPL v2.1",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.diluv.testmod.TestMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.7.4",
+    "minecraft": "1.16.x"
+  }
+}
