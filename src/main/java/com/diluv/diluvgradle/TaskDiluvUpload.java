@@ -22,6 +22,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.AppliedPlugin;
 import org.gradle.api.plugins.ExtraPropertiesExtension;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
@@ -89,6 +90,12 @@ public class TaskDiluvUpload extends DefaultTask {
      * If enabled the plugin-side semantic version check will be ignored.
      */
     public boolean ignoreSemVer = false;
+    
+    /**
+     * If enabled the plugin will try to define loaders based on other plugins in the project
+     * environment.
+     */
+    public boolean detectLoaders = true;
     
     /**
      * The response from the API when the file was uploaded successfully.
@@ -333,6 +340,9 @@ public class TaskDiluvUpload extends DefaultTask {
                 }
             }
             
+            this.addLoaderForPlugin("net.minecraftforge.gradle", "forge");
+            this.addLoaderForPlugin("fabric-loom", "fabric");
+            
             // Only semantic versioning is allowed.
             if (!this.ignoreSemVer && !Constants.SEM_VER.matcher(this.request.getVersion()).matches()) {
                 
@@ -428,7 +438,7 @@ public class TaskDiluvUpload extends DefaultTask {
             if (status == 200) {
                 
                 this.uploadInfo = this.gson.fromJson(responseBody, ResponseUpload.class);
-                this.log.info("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
+                this.log.lifecycle("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
             }
             
             else {
@@ -555,6 +565,39 @@ public class TaskDiluvUpload extends DefaultTask {
         catch (final Exception e) {
             
             this.log.debug("Failed to detect Loom game version.", e);
+        }
+    }
+    
+    /**
+     * Applies a mod loader automatically if a plugin with the specified name has been applied.
+     * 
+     * @param pluginName The plugin to search for.
+     * @param loaderName The mod loader to apply.
+     */
+    private void addLoaderForPlugin (String pluginName, String loaderName) {
+        
+        if (this.detectLoaders) {
+            
+            try {
+                
+                final AppliedPlugin plugin = this.getProject().getPluginManager().findPlugin(pluginName);
+                
+                if (plugin != null) {
+                    
+                    this.addLoader(loaderName);
+                    this.log.debug("Applying loader {} because plugin {} was found.", loaderName, pluginName);
+                }
+                
+                else {
+                    
+                    this.log.debug("Could not automatically apply loader {} because plugin {} has not been applied.", loaderName, pluginName);
+                }
+            }
+            
+            catch (final Exception e) {
+                
+                this.log.debug("Failed to detect plugin {}.", pluginName, e);
+            }
         }
     }
 }
