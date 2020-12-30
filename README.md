@@ -151,4 +151,4 @@ buildscript {
 ```
 
 ### Examples
-Many example projects can be found in the [examples]() section of this repo. These projects provide a great environment for debugging the plugin and testing out new changes. 
+Many example projects can be found in the [examples](https://github.com/Diluv/Diluv-Gradle/tree/main/examples) section of this repo. These projects provide a great environment for debugging the plugin and testing out new changes. 
