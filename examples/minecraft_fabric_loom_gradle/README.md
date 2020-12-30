@@ -1,4 +1,4 @@
-# Minecraft Forge Example
+# Minecraft Fabric Example
 This example project is used to debug and demonstrate integrating DiluvGradle with a Fabric/Loom project.
 
 ## Usage Guide

@@ -1,4 +1,4 @@
-# Minecraft Forge Example
+# Minecraft Fabric Example
 This example is used to debug Diluv's integration with Fabric's Loom Gradle plugin. This example has been configured to connect to a locally hosted instance of the Diluv API that has been supplied with our mock database.
 
 ## Usage Guide
