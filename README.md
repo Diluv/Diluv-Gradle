@@ -14,7 +14,7 @@ To use this plugin you must add it to your build script. This can be done using 
 **Plugin DSL**    
 ```gradle
 plugins {
-    id "com.diluv.diluvgradle" version "1.2.2"
+    id "com.diluv.diluvgradle" version "1.4.0"
 }
 ```
 
