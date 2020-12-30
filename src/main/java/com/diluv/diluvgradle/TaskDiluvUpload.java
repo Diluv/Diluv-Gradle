@@ -444,8 +444,8 @@ public class TaskDiluvUpload extends DefaultTask {
             else {
                 
                 this.errorInfo = this.gson.fromJson(responseBody, ResponseError.class);
-                this.log.error("Upload failed! Status: {} Reson: {}", status, this.errorInfo.getMessage());
-                throw new GradleException("Upload failed! Status: " + status + " Reson: " + this.errorInfo.getMessage());
+                this.log.error("Upload failed! Status: {} Reason: {}", status, this.errorInfo.getMessage());
+                throw new GradleException("Upload failed! Status: " + status + " Reason: " + this.errorInfo.getMessage());
             }
         }
         
