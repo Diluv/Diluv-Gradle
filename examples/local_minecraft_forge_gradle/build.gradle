@@ -11,7 +11,7 @@ buildscript {
     dependencies {
     
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
-		classpath files { file('../../build/libs').listFiles()}
+        classpath files { file('../../build/libs').listFiles()}
         classpath group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
         classpath group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
         classpath group: 'com.google.code.gson', name: 'gson', version: '2.6.2'
@@ -110,7 +110,7 @@ task publishDiluv (type: TaskDiluvUpload) {
     projectId = findProperty('diluv_project');
     
     // Tells DiluvGradle what file to upload. This can be a Java file, a path to a file, or
-	// certain tasks which produce files such as any AbstractArchiveTask.
+    // certain tasks which produce files such as any AbstractArchiveTask.
     uploadFile = jar;
     
     // ======================
@@ -140,8 +140,8 @@ task publishDiluv (type: TaskDiluvUpload) {
     // Defines the type of release this file is. This is 'alpha' by default.
     // Accepts 'alpha', 'beta', and 'release'.
     // setReleaseType('beta');
-	
-	// Changes the API URL that DiluvGradle uses to authenticate and upload the file to. This
-	// is primarily intended for debugging.
+    
+    // Changes the API URL that DiluvGradle uses to authenticate and upload the file to. This
+    // is primarily intended for debugging.
     apiURL = findProperty('diluv_api');
 }

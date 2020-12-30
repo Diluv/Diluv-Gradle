@@ -2,7 +2,7 @@ buildscript {
     
     dependencies {
 
-		classpath files { file('../../build/libs').listFiles()}
+        classpath files { file('../../build/libs').listFiles()}
         classpath group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
         classpath group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
         classpath group: 'com.google.code.gson', name: 'gson', version: '2.6.2'

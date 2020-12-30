@@ -25,14 +25,14 @@ task testPlugin (type: TaskDiluvUpload){
     apiURL = project.findProperty('diluv_api');
     token = project.findProperty('diluv_token');
     projectId = project.findProperty('diluv_project');
-	
+    
     uploadFile = jar
-	
-	setChangelog('Hello, this is the changelog for the file.');
-		
-	addGameVersion('1.12.2');	
-	addDependency(2);
-	addOptionalDependency(3);
-	addIncompatibility(4);	
-	addLoader('forge');
+    
+    setChangelog('Hello, this is the changelog for the file.');
+        
+    addGameVersion('1.12.2');    
+    addDependency(2);
+    addOptionalDependency(3);
+    addIncompatibility(4);    
+    addLoader('forge');
 }
