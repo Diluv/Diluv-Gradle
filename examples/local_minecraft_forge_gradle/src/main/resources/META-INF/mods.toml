@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[35,)"
+license="LGPL v2.1"
+
+[[mods]]
+modId="diluvtestmod"
+version="${file.jarVersion}"
+displayName="Diluv Example Mod"
+credits="Diluv team & and the Minecraft modding community."
+authors="Darkhax, Jaredlll08, lclc98"
+description='''
+A simple Minecraft Forge MDK set up with ForgeGradle.
+'''
+
+[[dependencies.diluvtestmod]]
+    modId="forge"
+    mandatory=true
+    versionRange="[35,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.diluvtestmod]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.16.4]"
+    ordering="NONE"
+    side="BOTH"

@@ -1,5 +1,12 @@
-# [Diluv-Gradle](https://plugins.gradle.org/plugin/com.diluv.diluvgradle)
-A Gradle plugin for uploading build artifacts directly to Diluv.
+# [Diluv-Gradle](https://plugins.gradle.org/plugin/com.diluv.diluvgradle) ![Latest Version](https://img.shields.io/maven-metadata/v/https/plugins.gradle.org/m2/com/diluv/diluvgradle/com.diluv.diluvgradle.gradle.plugin/maven-metadata.xml.svg?colorB=007ec6&label=Latest%20Version)
+A Gradle plugin for uploading Gradle build artifacts directly to Diluv.
+
+## Features
+
+- Upload build artifacts to Diluv directly.
+- Auto-detect game version from environmental context clues.
+- Auto-detect supported mod loaders from environmental context clues.
+- Lots of configuration options and scripting potential.
 
 ## Usage Guide
 To use this plugin you must add it to your build script. This can be done using the plugins DSL or added to the classpath directly for legacy scripts.
@@ -7,7 +14,7 @@ To use this plugin you must add it to your build script. This can be done using 
 **Plugin DSL**    
 ```gradle
 plugins {
-    id "com.diluv.diluvgradle" version "1.2.2"
+    id "com.diluv.diluvgradle" version "1.4.0"
 }
 ```
 
@@ -32,43 +39,44 @@ import com.diluv.diluvgradle.TaskDiluvUpload
 
 task publishDiluv (type: TaskDiluvUpload){
 
-    token = 'a7104dd8-f43a-4468-b5cd-b6ed3394916d' // Use an environment property!
-    projectId = 123456
-    projectVersion = '1.0.0'
-    uploadFile = jar // This is the java jar task
-    addGameVersion('1.16.4')
+    // This token is used to authenticate with Diluv. It should be handled with the same
+    // sensitivity and security as a password. This means you should never share this token
+    // or upload it to a public location such as GitHub. These are commonly stored as secret
+    // environmental variables. 
+    token = findProperty('diluv_token');
+    
+    // This tells Diluv what project you are uploading the file to. You can find the ID for
+    // any project on the Diluv Project Page. This is not considered secret or sensitive.
+    projectId = findProperty('diluv_project');
+    
+    // Tells DiluvGradle what file to upload. This can be a Java file, a path to a file, or
+    // certain tasks which produce files such as any AbstractArchiveTask.
+    uploadFile = jar;
 }
 ```
 
 ### Available Properties
 
-| Property                         | Required | Description                                                                         |
-|----------------------------------|----------|-------------------------------------------------------------------------------------|
-| apiURL                           | false    | The API endpoint URL to use for uploading files. Defaults to official Diluv API.    |
-| token                            | true     | A valid API token for the Diluv API.                                                |
-| projectId                        | true     | The ID of the project to upload to.                                                 |
-| projectVersion                   | true     | The version of the file. Please use semantic versioning.                            |
-| changelog                        | false    | The changelog for the file. Allows Markdown formatting.                             |
-| uploadFile                       | true     | The file to upload. Can be an actual file or a file task.                           |
-| releaseType                      | false    | The release status of the file. Defaults to "alpha".                                |
-| classifier                       | false    | The type of file being uploaded. Defaults to binary.                                |
-| failSilently                     | false    | When true an upload failure will not fail your build.                               |
-| addGameVersion(version)          | true     | Adds a game version that this file supports. At least one is needed.                |
-| addDependency(projectId)         | false    | Marks a project as a required dependency.                                           |
-| addOptionalDependency(projectId) | false    | Marks a project as an optional/soft dependency.                                     |
-| addIncompatibility(projectId)    | false    | Marks a project as being incompatible with this file.                               |
-| addRelation(projectId, type)     | false    | Adds a project relationship to the file. Only some relationship types are accepted. |
-| addLoader(loader)                | false    | Allows supported mod loaders to be specified for the file.                          |
-
-**Note:** In some scenarios the `gameVersion` property can be detected automatically. For example the ForgeGradle and LoomGradle environments. For best results you should set this property manually.
-
-### Additional Properties
-
-| Name                  | Description                                                                                         |
-|-----------------------|-----------------------------------------------------------------------------------------------------|
-| uploadInfo            | The response from the API server. Only present after upload is completed successfully.              |
-| errorInfo             | The response from the API server. Only present after an upload fails.                               |
-| wasUploadSuccessful() | Checks if the upload was successful or not. Should be used before accessing uploadInfo or errorInfo |
+| Name                             | Type   | Description                                                                                                                      |
+|----------------------------------|--------|----------------------------------------------------------------------------------------------------------------------------------|
+| apiUrl                           | Field  | The URL for the Diluv REST API to use. This is primarily used to debug with locally hosted instances of the API.                 |
+| projectId                        | Field  | The ID of the project to upload your file to. This is a required property to set.                                                |
+| token                            | Field  | The authorization token used to verify your identity with the Diluv API. This is a required property to set.                     |
+| uploadFile                       | Field  | The file to upload. This can be a file instance, path to a file, or some tasks that produce a file such as "jar".                |
+| failSilently                     | Field  | Enabling this option will allow the DiluvGradle plugin to fail without causing the entire build to fail.                         |
+| ignoreSemVer                     | Field  | Enabling this option will disable local semantic versioning checks. This will not cause server-side checks to be disabled.       |
+| detectLoaders                    | Field  | Disabling this will prevent the auto detection of mod loaders.                                                                   |
+| addGameVersion(version)          | Method | Adds a compatible game version to the list of versions supported by the file.                                                    |
+| setVersion(version)              | Method | Sets the version of the file itself. By default this will pull from the project.version property.                                |
+| setChangelog(changelog)          | Method | Sets the change log for the file. This can be a string or a plaintext file containing the changelog info.                        |
+| setReleaseType(type)             | Method | Sets the release type for the project. Accepted values are "alpha", "beta", and "release".                                       |
+| addDependency(projectId)         | Method | Marks another Diluv project as a required dependency for this file.                                                              |
+| addOptionalDependency(projectId) | Method | Marks another Diluv project as being recommended or having additional functionality with this file.                              |
+| addIncompatibility(projectId)    | Method | Marks another Diluv project as being incompatible with this file.                                                                |
+| addLoader(loader)                | Method | Marks a mod loader as being compatible with the file. Such as "forge" or "fabric".                                               |
+| wasUploadSuccessful()            | Method | Returns true if the file was successfully uploaded. If false is returned the upload failed or the file hasn't been uploaded yet. |
+| getUploadInfo()                  | Method | Returns an object containing various API data about the file that was uploaded. If called too early an exception will be raised. |
+| getErrorInfo()                   | Method | Returns an object containing the error message from the API. If called too early an exception will be raised.                    |
 
 #### Upload Info
 
@@ -118,8 +126,6 @@ task publishDiluv (type: TaskDiluvUpload){
 | avatarURL   | String | A URL that points to their profile avatar.    |
 | createdAt   | Long   | The timestamp for when the user joined Diluv. |
 
-#### UserInfo
-
 ## Development Information
 This section contains information useful to those working on the plugin directly or creating their own custom versions of our plugin. If you want to just use DiluvGradle in your build pipeline you will not need to know or understand any of this.
 
@@ -143,3 +149,6 @@ buildscript {
     }
 }
 ```
+
+### Examples
+Many example projects can be found in the [examples](https://github.com/Diluv/Diluv-Gradle/tree/main/examples) section of this repo. These projects provide a great environment for debugging the plugin and testing out new changes. 

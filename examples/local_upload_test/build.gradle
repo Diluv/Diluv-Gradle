@@ -1,0 +1,38 @@
+buildscript {
+
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath files { file('../../build/libs').listFiles()}
+        classpath group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
+        classpath group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
+        classpath group: 'com.google.code.gson', name: 'gson', version: '2.6.2'
+    }
+}
+
+apply plugin: 'java'
+    
+import com.diluv.diluvgradle.TaskDiluvUpload
+
+def rand = new Random();
+version = "1.1.${Math.abs(rand.nextInt())}"
+
+task testPlugin (type: TaskDiluvUpload){
+    
+    apiURL = project.findProperty('diluv_api');
+    token = project.findProperty('diluv_token');
+    projectId = project.findProperty('diluv_project');
+    
+    uploadFile = jar
+    
+    setChangelog('Hello, this is the changelog for the file.');
+        
+    addGameVersion('1.12.2');    
+    addDependency(2);
+    addOptionalDependency(3);
+    addIncompatibility(4);    
+    addLoader('forge');
+}
