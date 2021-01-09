@@ -5,6 +5,9 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 
 import javax.annotation.Nullable;
 
@@ -161,6 +164,60 @@ public class TaskDiluvUpload extends DefaultTask {
         
         this.request.setChangelog(changelog);
         this.log.debug("Setting changelog to: '{}'", changelog);
+    }
+    
+    /**
+     * Attempts to read a changelog from a file using the UTF-8 character set.
+     * 
+     * @param file The file to read the changelog from.
+     */
+    public void setChangelog (File file) {
+        
+        this.setChangelog(file, StandardCharsets.UTF_8);
+    }
+    
+    /**
+     * Attempts to read a changelog from a file using the specified character set.
+     * 
+     * @param file The file to read the changelog from.
+     * @param charset The name of the character set to use.
+     */
+    public void setChangelog (File file, String charset) {
+        
+        this.setChangelog(file, Charset.forName(charset));
+    }
+    
+    /**
+     * Attempt to read a changelog from a file using the given character set.
+     * 
+     * @param file The file to read the changelog from.
+     * @param charset The character set to read the file with.
+     */
+    public void setChangelog (File file, Charset charset) {
+        
+        if (file != null && file.exists()) {
+            
+            try {
+                
+                // Read the file as bytes rather than lines to preserve line terminators.
+                final byte[] encoded = Files.readAllBytes(file.toPath());
+                
+                this.log.debug("Setting changelog from file {}. Read {} bytes.", file, encoded != null ? encoded.length : 0);
+                this.setChangelog(new String(encoded, charset));
+            }
+            
+            catch (final IOException e) {
+                
+                this.log.error("Failed to set changelog from file.", e);
+                throw new GradleException("Failed to set changelog from file.", e);
+            }
+        }
+        
+        else {
+            
+            this.log.error("Could not set changelog to file {}. The file is missing or null.", file);
+            throw new GradleException("Could not set changelog from file. The file was missing or null. file=" + file);
+        }
     }
     
     /**

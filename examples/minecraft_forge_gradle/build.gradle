@@ -122,6 +122,10 @@ task publishDiluv (type: TaskDiluvUpload) {
     
     // Specifies a changelog for your file. This can be hard coded or generated at build time.
     // setChangelog('The changelog string for your file.');
+    // Alternatively you can load the changelog text from a file with and optional charset.
+    // setChangelog(file('changelog.md')); // Uses UTF-8
+    // setChangelog(file('changelog.md'), 'UTF-8');
+    // setChangelog(file('changelog.md'), StandardCharsets.UTF_8);
     
     // Relations between your file and other files on Diluv can be defined like this.
     // addDependency(projectId); - A project that your file requires.

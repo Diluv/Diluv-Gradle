@@ -69,6 +69,8 @@ task publishDiluv (type: TaskDiluvUpload){
 | addGameVersion(version)          | Method | Adds a compatible game version to the list of versions supported by the file.                                                    |
 | setVersion(version)              | Method | Sets the version of the file itself. By default this will pull from the project.version property.                                |
 | setChangelog(changelog)          | Method | Sets the change log for the file. This can be a string or a plaintext file containing the changelog info.                        |
+| setChangelog(file)               | Method | Sets the change log for the file using the contents of a file. This method uses UTF-8 encoding by default.                       |
+| setChangelog(file, charset)      | Method | Sets the change log for the file using the contents of a file. The charset can be defined as a String or a Charset object.       |
 | setReleaseType(type)             | Method | Sets the release type for the project. Accepted values are "alpha", "beta", and "release".                                       |
 | addDependency(projectId)         | Method | Marks another Diluv project as a required dependency for this file.                                                              |
 | addOptionalDependency(projectId) | Method | Marks another Diluv project as being recommended or having additional functionality with this file.                              |
