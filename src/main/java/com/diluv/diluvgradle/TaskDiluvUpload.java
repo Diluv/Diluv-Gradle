@@ -5,14 +5,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -30,10 +22,14 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
+import org.gradle.api.plugins.AppliedPlugin;
+import org.gradle.api.plugins.ExtraPropertiesExtension;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 
-import com.diluv.diluvgradle.request.FileDependency;
+import com.diluv.diluvgradle.request.FileProjectRelation;
+import com.diluv.diluvgradle.request.RelationType;
 import com.diluv.diluvgradle.request.RequestData;
 import com.diluv.diluvgradle.responses.ResponseError;
 import com.diluv.diluvgradle.responses.ResponseUpload;
@@ -46,29 +42,21 @@ import com.google.gson.GsonBuilder;
 public class TaskDiluvUpload extends DefaultTask {
     
     /**
-     * Logger for internal use only.
+     * An internal logger instance used to output status and debug information about the plugin
+     * and it's usage.
      */
-    private static final Logger LOGGER = Logging.getLogger("DiluvGradle");
+    private final Logger log;
     
     /**
-     * Constant gson instance used for deserializing the API responses when files are uploaded.
+     * A project specific instance of Gson. Used to serialize JSON objects for use with Diluv's
+     * REST API.
      */
-    private static final Gson GSON = new GsonBuilder().create();
+    private final Gson gson;
     
     /**
-     * A regex pattern for matching semantic versioning version numbers. This was taken from
-     * https://semver.org/.
+     * Represents the file upload data attached to the API call when uploading the file.
      */
-    private static final Pattern SEM_VER = Pattern.compile("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$");
-    
-    private static final String RELATION_REQUIRED = "required";
-    private static final String RELATION_OPTIONAL = "optional";
-    private static final String RELATION_INCOMPATIBLE = "incompatible";
-    
-    /**
-     * A list of recognized project relationship types.
-     */
-    private static final List<String> PROJECT_RELATION_TYPES = Arrays.asList(RELATION_REQUIRED, RELATION_OPTIONAL, RELATION_INCOMPATIBLE);
+    private final RequestData request;
     
     /**
      * The URL used for communicating with Diluv. This should not be changed unless you know
@@ -78,24 +66,14 @@ public class TaskDiluvUpload extends DefaultTask {
     public String apiURL = "https://api.diluv.com";
     
     /**
-     * The API token used to communicate with Diluv. Make sure you keep this public!
-     */
-    public String token;
-    
-    /**
-     * The ID of the project to upload the file to.
+     * The ID of the project to upload to.
      */
     public String projectId;
     
     /**
-     * The version of the project being uploaded.
+     * The API token used to communicate with Diluv. Make sure you keep this public!
      */
-    public String projectVersion;
-    
-    /**
-     * The change log data to associate with the new file.
-     */
-    public String changelog;
+    public String token;
     
     /**
      * The upload artifact file. This can be any object type that is resolvable by
@@ -104,61 +82,169 @@ public class TaskDiluvUpload extends DefaultTask {
     public Object uploadFile;
     
     /**
-     * The release type for the project.
-     */
-    public String releaseType = "alpha";
-    
-    /**
-     * The type of file being uploaded.
-     */
-    public String classifier = "binary";
-    
-    /**
-     * The version of the game the file supports.
-     */
-    public Set<String> gameVersions = new HashSet<>();
-    
-    /**
      * Allows build to continue even if the upload failed.
      */
     public boolean failSilently = false;
     
     /**
+     * If enabled the plugin-side semantic version check will be ignored.
+     */
+    public boolean ignoreSemVer = false;
+    
+    /**
+     * If enabled the plugin will try to define loaders based on other plugins in the project
+     * environment.
+     */
+    public boolean detectLoaders = true;
+    
+    /**
      * The response from the API when the file was uploaded successfully.
      */
     @Nullable
-    public ResponseUpload uploadInfo = null;
+    @Internal
+    private ResponseUpload uploadInfo = null;
     
     /**
      * The response from the API when the file failed to upload.
      */
     @Nullable
-    public ResponseError errorInfo = null;
-    
-    /**
-     * Map of project ID to relationship type.
-     */
-    private final Map<Long, String> projectRelations = new HashMap<>();
-    
-    /**
-     * Collection of acceptable loaders for the file.
-     */
-    private final Set<String> loaders = new HashSet<>();
+    @Internal
+    private ResponseError errorInfo = null;
     
     public TaskDiluvUpload() {
+        
+        this.log = Logging.getLogger("DiluvGradle");
+        this.gson = new GsonBuilder().create();
+        this.request = new RequestData();
         
         // If the build task is present make sure this task is ran after it. This is required
         // for some environments such as those with parallel tasks enabled.
         this.mustRunAfter(this.getProject().getTasks().getByName("build"));
     }
     
+    /**
+     * Adds a compatible game version to the file.
+     * 
+     * @param version The compatible game version.
+     */
     public void addGameVersion (String version) {
         
-        LOGGER.debug("Adding game version {} to project {}.", version, this.projectId);
+        this.log.debug("Adding game version {}.", version);
         
-        if (!this.gameVersions.add(version)) {
+        if (!this.request.addGameVersion(version)) {
             
-            LOGGER.warn("The game version {} was already applied for project {}.", version, this.projectId);
+            this.log.warn("The game version {} was not be applied.", version);
+        }
+    }
+    
+    /**
+     * Sets the version of the file being uploaded.
+     * 
+     * @param version The version of the file being uploaded.
+     */
+    public void setVersion (String version) {
+        
+        if (this.request.hasVersion()) {
+            
+            this.log.debug("Replacing file version {} with {}.", this.request.getVersion(), version);
+        }
+        
+        this.request.setVersion(version);
+    }
+    
+    /**
+     * Sets the changelog for the file.
+     * 
+     * @param changelog The changelog for the file.
+     */
+    public void setChangelog (String changelog) {
+        
+        this.request.setChangelog(changelog);
+        this.log.debug("Setting changelog to: '{}'", changelog);
+    }
+    
+    /**
+     * Sets the release type of the file being uploaded.
+     * 
+     * @param type The type of release.
+     */
+    public void setReleaseType (String type) {
+        
+        this.log.debug("Setting release type to {}.", type);
+        this.request.setReleaseType(type);
+    }
+    
+    /**
+     * Sets the classifier type of the file being uploaded.
+     * 
+     * @param classifier The classifier of the file being uploaded.
+     */
+    public void setClassifier (String classifier) {
+        
+        this.log.debug("Setting classifier to {}.", classifier);
+        this.request.setClassifier(classifier);
+    }
+    
+    /**
+     * Adds a required project dependency for the file.
+     * 
+     * @param project The project that this file requires.
+     */
+    public void addDependency (long project) {
+        
+        this.addRelation(project, RelationType.REQUIRED);
+    }
+    
+    /**
+     * Adds an optional project dependency for the file.
+     * 
+     * @param project The project that is optional.
+     */
+    public void addOptionalDependency (long project) {
+        
+        this.addRelation(project, RelationType.OPTIONAL);
+    }
+    
+    /**
+     * Adds an incompatibility relationship for the file.
+     * 
+     * @param project The project that the file is not compatible with.
+     */
+    public void addIncompatibility (long project) {
+        
+        this.addRelation(project, RelationType.INCOMPATIBLE);
+    }
+    
+    /**
+     * Adds a project relationship to the uploaded file. This determines things like
+     * dependencies and incompatibilities.
+     * 
+     * @param project The project to add a relation with.
+     * @param type The type of relation to add.
+     */
+    private void addRelation (long project, RelationType type) {
+        
+        final FileProjectRelation existingRelation = this.request.addRelation(new FileProjectRelation(project, type));
+        this.log.debug("Added {} relation with project {}.", type, project);
+        
+        if (existingRelation != null) {
+            
+            this.log.warn("Overwriting relation for {} to {}, was previously set as {}.", project, type, existingRelation);
+        }
+    }
+    
+    /**
+     * Adds a loader tag for the file.
+     * 
+     * @param loader The loader to allow.
+     */
+    public void addLoader (String loader) {
+        
+        this.log.debug("Adding loader tag {}.", loader);
+        
+        if (!this.request.addLoader(loader)) {
+            
+            this.log.warn("The loader tag {} was already applied.", loader);
         }
     }
     
@@ -174,66 +260,49 @@ public class TaskDiluvUpload extends DefaultTask {
     }
     
     /**
-     * Adds a required project dependency for the file.
+     * Attempts to get the upload info for this task. If the file has not been uploaded yet an
+     * exception will be raised.
      * 
-     * @param project The project that this file requires.
+     * @return If the file was uploaded successfully the upload info response will be returned.
+     *         Otherwise null.
      */
-    public void addDependency (long project) {
+    @Nullable
+    public ResponseUpload getUploadInfo () {
         
-        this.addRelation(project, RELATION_REQUIRED);
+        if (this.uploadInfo != null) {
+            
+            return this.uploadInfo;
+        }
+        
+        else if (this.errorInfo == null) {
+            
+            throw new GradleException("Attempted to access upload info before file was uploaded. The info is not available at this stage!");
+        }
+        
+        return null;
     }
     
     /**
-     * Adds an optional project dependency for the file.
+     * Attempts to get the upload error info for this task. Attempting to use this before the
+     * file has been uploaded will cause an exception to be raised.
      * 
-     * @param project The project that is optional.
+     * @return If the file was uploaded unsuccessfully the error info will be returned.
+     *         Otherwise null.
      */
-    public void addOptionalDependency (long project) {
+    @Nullable
+    public ResponseError getErrorInfo () {
         
-        this.addRelation(project, RELATION_OPTIONAL);
-    }
-    
-    /**
-     * Adds an incompatibility relationship for the file.
-     * 
-     * @param project The project that the file is not compatible with.
-     */
-    public void addIncompatibility (long project) {
-        
-        this.addRelation(project, RELATION_INCOMPATIBLE);
-    }
-    
-    /**
-     * Adds a project relationship to the uploaded file. This determines things like
-     * dependencies and incompatibilities.
-     * 
-     * @param project The project to add a relation with.
-     * @param type The type of relation to add.
-     */
-    public void addRelation (long project, String type) {
-        
-        if (!PROJECT_RELATION_TYPES.contains(type)) {
+        if (this.errorInfo != null) {
             
-            LOGGER.warn("The project relation type {} is not recognized and may not work. The known types are {}.", type, PROJECT_RELATION_TYPES.stream().collect(Collectors.joining(", ")));
+            return this.errorInfo;
         }
         
-        final String existingRelation = this.projectRelations.put(project, type);
-        LOGGER.debug("Added {} relation with project {}.", type, project);
-        
-        if (existingRelation != null) {
+        else if (this.uploadInfo == null) {
             
-            LOGGER.warn("Overwriting relation for {} to {}, was previously set as {}.", project, type, existingRelation);
+            throw new GradleException("Attempted to access upload error info before file was uploaded. The info is not available at this stage!");
         }
-    }
-    
-    public void addLoader (String loader) {
         
-        LOGGER.debug("Adding loader tag {} to project {}.", loader, this.projectId);
-        
-        if (!this.loaders.add(loader)) {
-            
-            LOGGER.warn("The loader tag {} was already applied for project {}.", loader, this.projectId);
-        }
+        return null;
     }
     
     @TaskAction
@@ -242,37 +311,50 @@ public class TaskDiluvUpload extends DefaultTask {
         try {
             
             // Attempt to automatically resolve the game version if one wasn't specified.
-            if (this.gameVersions.isEmpty()) {
+            if (!this.request.hasGameVersion()) {
                 
-                final String detectedVersion = detectGameVersion(this.getProject());
+                this.detectGameVersionForge();
+                this.detectGameVersionFabric();
+            }
+            
+            // Check the game version again, if it's still not there the upload has failed.
+            if (!this.request.hasGameVersion()) {
                 
-                if (detectedVersion == null) {
+                throw new GradleException("Can not upload to Diluv. No game version specified.");
+            }
+            
+            // Use project version from Gradle if no version was specified.
+            if (this.request.getVersion() == null || this.request.getVersion().isEmpty()) {
+                
+                final String projectBuildVersion = this.getProject().getVersion().toString();
+                
+                if (projectBuildVersion != null && !projectBuildVersion.isEmpty()) {
                     
-                    throw new GradleException("Can not upload to Diluv. No game version specified.");
+                    this.log.debug("File version will fall back to build version of {}.", projectBuildVersion);
+                    this.request.setVersion(projectBuildVersion);
                 }
                 
                 else {
-                    this.addGameVersion(detectedVersion);
+                    
+                    throw new GradleException("No file version was specified, and the fallback Gradle build version could not be found.");
                 }
             }
             
-            // Use project version if no version is specified.
-            if (this.projectVersion == null) {
-                
-                this.projectVersion = this.getProject().getVersion().toString();
-            }
+            this.addLoaderForPlugin("net.minecraftforge.gradle", "forge");
+            this.addLoaderForPlugin("fabric-loom", "fabric");
             
             // Only semantic versioning is allowed.
-            if (!SEM_VER.matcher(this.projectVersion).matches()) {
+            if (!this.ignoreSemVer && !Constants.SEM_VER.matcher(this.request.getVersion()).matches()) {
                 
-                LOGGER.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.projectVersion);
-                throw new GradleException("Project version '" + this.projectVersion + "' is not semantic versioning compatible. The file can not be uploaded. https://semver.org");
+                this.log.error("Project version {} is not semantic versioning compatible. The file can not be uploaded. https://semver.org", this.request.getVersion());
+                throw new GradleException("Project version '" + this.request.getVersion() + "' is not semantic versioning compatible. The file can not be uploaded. https://semver.org");
             }
             
             // Set a default changelog if the dev hasn't provided one.
-            if (this.changelog == null) {
+            if (!this.request.hasChangelog()) {
                 
-                this.changelog = "The project has been updated to " + this.getProject() + ". No changelog was specified.";
+                this.request.setChangelog("The project has been updated to " + this.request.getVersion() + ".");
+                this.log.warn("No changelog was specified. A default one will be used. This is not recommended.");
             }
             
             final File file = resolveFile(this.getProject(), this.uploadFile, null);
@@ -280,7 +362,7 @@ public class TaskDiluvUpload extends DefaultTask {
             // Ensure the file actually exists before trying to upload it.
             if (file == null || !file.exists()) {
                 
-                LOGGER.error("The upload file is missing or null. {}", this.uploadFile);
+                this.log.error("The upload file is missing or null. {}", this.uploadFile);
                 throw new GradleException("The upload file is missing or null. " + String.valueOf(this.uploadFile));
             }
             
@@ -295,14 +377,14 @@ public class TaskDiluvUpload extends DefaultTask {
                 
                 catch (final IOException e) {
                     
-                    LOGGER.error("Failed to upload the file!", e);
+                    this.log.error("Failed to upload the file!", e);
                     throw new GradleException("Failed to upload the file!", e);
                 }
             }
             
             catch (final URISyntaxException e) {
                 
-                LOGGER.error("Invalid endpoint URI!", e);
+                this.log.error("Invalid endpoint URI!", e);
                 throw new GradleException("Invalid endpoint URI!", e);
             }
         }
@@ -311,8 +393,8 @@ public class TaskDiluvUpload extends DefaultTask {
             
             if (this.failSilently) {
                 
-                LOGGER.info("Failed to upload to Diluv. Check logs for more info.");
-                LOGGER.error("Diluv upload failed silently.", e);
+                this.log.info("Failed to upload to Diluv. Check logs for more info.");
+                this.log.error("Diluv upload failed silently.", e);
             }
             
             else {
@@ -331,7 +413,7 @@ public class TaskDiluvUpload extends DefaultTask {
      */
     public void upload (URI endpoint, File file) throws IOException {
         
-        LOGGER.debug("Uploading {} to {}.", file.getPath(), this.getUploadEndpoint());
+        this.log.debug("Uploading {} to {}.", file.getPath(), this.getUploadEndpoint());
         
         final HttpClient client = HttpClientBuilder.create().setDefaultRequestConfig(RequestConfig.custom().setCookieSpec(CookieSpecs.IGNORE_COOKIES).build()).build();
         final HttpPost post = new HttpPost(endpoint);
@@ -341,17 +423,7 @@ public class TaskDiluvUpload extends DefaultTask {
         final MultipartEntityBuilder form = MultipartEntityBuilder.create();
         form.addBinaryBody("file", file);
         form.addTextBody("filename", file.getName());
-        
-        final RequestData data = new RequestData();
-        data.setVersion(this.projectVersion);
-        data.setChangelog(this.changelog);
-        data.setReleaseType(this.releaseType);
-        data.setClassifier(this.classifier);
-        data.setGameVersions(this.gameVersions);
-        data.setLoaders(this.loaders);
-        data.setDependencies(this.projectRelations.entrySet().stream().map(e -> new FileDependency(e.getKey(), e.getValue())).collect(Collectors.toList()));
-        
-        form.addTextBody("data", GSON.toJson(data), ContentType.APPLICATION_JSON);
+        form.addTextBody("data", this.gson.toJson(this.request), ContentType.APPLICATION_JSON);
         post.setEntity(form.build());
         
         try {
@@ -360,26 +432,26 @@ public class TaskDiluvUpload extends DefaultTask {
             final int status = response.getStatusLine().getStatusCode();
             final String responseBody = EntityUtils.toString(response.getEntity());
             
-            LOGGER.debug("Diluv Response Code: {}", status);
-            LOGGER.debug("Diluv Response Body: {}", responseBody);
+            this.log.debug("Diluv Response Code: {}", status);
+            this.log.debug("Diluv Response Body: {}", responseBody);
             
             if (status == 200) {
                 
-                this.uploadInfo = GSON.fromJson(responseBody, ResponseUpload.class);
-                LOGGER.info("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
+                this.uploadInfo = this.gson.fromJson(responseBody, ResponseUpload.class);
+                this.log.lifecycle("Sucessfully uploaded {} to {} as file id {}.", file.getName(), this.projectId, this.uploadInfo.getId());
             }
             
             else {
                 
-                this.errorInfo = GSON.fromJson(responseBody, ResponseError.class);
-                LOGGER.error("Upload failed! Status: {} Reson: {}", status, this.errorInfo.getMessage());
-                throw new GradleException("Upload failed! Status: " + status + " Reson: " + this.errorInfo.getMessage());
+                this.errorInfo = this.gson.fromJson(responseBody, ResponseError.class);
+                this.log.error("Upload failed! Status: {} Reason: {}", status, this.errorInfo.getMessage());
+                throw new GradleException("Upload failed! Status: " + status + " Reason: " + this.errorInfo.getMessage());
             }
         }
         
         catch (final IOException e) {
             
-            LOGGER.error("Failure to upload file!", e);
+            this.log.error("Failure to upload file!", e);
             throw e;
         }
     }
@@ -432,50 +504,100 @@ public class TaskDiluvUpload extends DefaultTask {
     }
     
     /**
-     * Attempts to automatically detect a game version based on the script environment. This is
-     * intended as a fallback and should never override user specified data.
-     * 
-     * @param project The Gradle project to look through.
-     * @return A detected game version string. This will be null if nothing was found.
+     * Attempts to detect the game version by detecting ForgeGradle data in the build
+     * environment.
      */
-    @Nullable
-    private static String detectGameVersion (Project project) {
+    private void detectGameVersionForge () {
         
-        String version = null;
-        
-        // ForgeGradle will store the game version here.
-        // https://github.com/MinecraftForge/ForgeGradle/blob/9252ffe1fa5c2acf133f35d169ba4ffc84e6a9fd/src/userdev/java/net/minecraftforge/gradle/userdev/MinecraftUserRepo.java#L179
-        if (project.getExtensions().getExtraProperties().has("MC_VERSION")) {
+        try {
             
-            version = project.getExtensions().getExtraProperties().get("MC_VERSION").toString();
+            final ExtraPropertiesExtension extraProps = this.getProject().getExtensions().getExtraProperties();
+            
+            // ForgeGradle will store the game version here.
+            // https://github.com/MinecraftForge/ForgeGradle/blob/9252ffe1fa5c2acf133f35d169ba4ffc84e6a9fd/src/userdev/java/net/minecraftforge/gradle/userdev/MinecraftUserRepo.java#L179
+            if (extraProps.has("MC_VERSION")) {
+                
+                final String forgeGameVersion = extraProps.get("MC_VERSION").toString();
+                
+                if (forgeGameVersion != null && !forgeGameVersion.isEmpty()) {
+                    
+                    this.log.debug("Detected fallback game version {} from ForgeGradle.", forgeGameVersion);
+                    this.addGameVersion(forgeGameVersion);
+                }
+            }
         }
         
-        else {
+        catch (final Exception e) {
             
-            // Loom/Fabric Gradle detection.
+            this.log.debug("Failed to detect ForgeGradle game version.", e);
+        }
+    }
+    
+    /**
+     * Attempts to detect the game version by detecting LoomGradle data in the build
+     * environment.
+     */
+    private void detectGameVersionFabric () {
+        
+        // Loom/Fabric Gradle detection.
+        try {
+            
+            // Using reflection because loom isn't always available.
+            final Class<?> loomType = Class.forName("net.fabricmc.loom.LoomGradleExtension");
+            final Method getProvider = loomType.getMethod("getMinecraftProvider");
+            
+            final Class<?> minecraftProvider = Class.forName("net.fabricmc.loom.providers.MinecraftProvider");
+            final Method getVersion = minecraftProvider.getMethod("getMinecraftVersion");
+            
+            final Object loomExt = this.getProject().getExtensions().getByType(loomType);
+            final Object loomProvider = getProvider.invoke(loomExt);
+            final Object loomVersion = getVersion.invoke(loomProvider);
+            
+            final String loomGameVersion = loomVersion.toString();
+            
+            if (loomGameVersion != null && !loomGameVersion.isEmpty()) {
+                
+                this.log.debug("Detected fallback game version {} from Loom.", loomGameVersion);
+                this.addGameVersion(loomGameVersion);
+            }
+        }
+        
+        catch (final Exception e) {
+            
+            this.log.debug("Failed to detect Loom game version.", e);
+        }
+    }
+    
+    /**
+     * Applies a mod loader automatically if a plugin with the specified name has been applied.
+     * 
+     * @param pluginName The plugin to search for.
+     * @param loaderName The mod loader to apply.
+     */
+    private void addLoaderForPlugin (String pluginName, String loaderName) {
+        
+        if (this.detectLoaders) {
+            
             try {
                 
-                // Using reflection because loom isn't always available.
-                final Class<?> loomType = Class.forName("net.fabricmc.loom.LoomGradleExtension");
-                final Method getProvider = loomType.getMethod("getMinecraftProvider");
+                final AppliedPlugin plugin = this.getProject().getPluginManager().findPlugin(pluginName);
                 
-                final Class<?> minecraftProvider = Class.forName("net.fabricmc.loom.providers.MinecraftProvider");
-                final Method getVersion = minecraftProvider.getMethod("getMinecraftVersion");
+                if (plugin != null) {
+                    
+                    this.addLoader(loaderName);
+                    this.log.debug("Applying loader {} because plugin {} was found.", loaderName, pluginName);
+                }
                 
-                final Object loomExt = project.getExtensions().getByType(loomType);
-                final Object loomProvider = getProvider.invoke(loomExt);
-                final Object loomVersion = getVersion.invoke(loomProvider);
-                
-                version = loomVersion.toString();
+                else {
+                    
+                    this.log.debug("Could not automatically apply loader {} because plugin {} has not been applied.", loaderName, pluginName);
+                }
             }
             
             catch (final Exception e) {
                 
-                project.getLogger().debug("Failed to detect loom game version.", e);
+                this.log.debug("Failed to detect plugin {}.", pluginName, e);
             }
         }
-        
-        project.getLogger().debug("Using fallback game version {}.", version);
-        return version;
     }
 }

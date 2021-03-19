@@ -1,0 +1,147 @@
+buildscript {
+
+    repositories {
+    
+        maven { url = 'https://files.minecraftforge.net/maven' }
+        maven { url = 'https://plugins.gradle.org/m2/' }
+        jcenter()
+        mavenCentral()
+    }
+    
+    dependencies {
+    
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
+        classpath files { file('../../build/libs').listFiles()}
+        classpath group: 'org.apache.httpcomponents', name: 'httpmime', version: '4.5.2'
+        classpath group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.2'
+        classpath group: 'com.google.code.gson', name: 'gson', version: '2.6.2'
+    }
+}
+
+version = "1.1.${Math.abs(new Random().nextInt())}"
+
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'eclipse'
+
+archivesBaseName = 'diluvtestmod'
+
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+
+minecraft {
+
+    mappings channel: 'snapshot', version: '20201028-1.16.3'
+
+    runs {
+    
+        client {
+        
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+            
+                diluvtestmod {
+                
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+        
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+            
+                diluvtestmod {
+                
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+dependencies {
+
+    minecraft 'net.minecraftforge:forge:1.16.4-35.1.28'
+}
+
+jar {
+
+    manifest {
+    
+        attributes([
+            "Specification-Title": "diluvtestmod",
+            "Specification-Vendor": "Diluv",
+            "Specification-Version": "1",
+            "Implementation-Title": project.name,
+            "Implementation-Version": "${version}",
+            "Implementation-Vendor" :"Diluv",
+            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+jar.finalizedBy('reobfJar')
+
+// Diluv Publishing
+import com.diluv.diluvgradle.TaskDiluvUpload
+
+task publishDiluv (type: TaskDiluvUpload) {
+
+    // ======================
+    // === REQUIRED STUFF ===
+    // ======================
+    
+    // This token is used to authenticate with Diluv. It should be handled with the same
+    // sensitivity and security as a password. This means you should never share this token
+    // or upload it to a public location such as GitHub. These are commonly stored as secret
+    // environmental variables. 
+    token = findProperty('diluv_token');
+    
+    // This tells Diluv what project you are uploading the file to. You can find the ID for
+    // any project on the Diluv Project Page. This is not considered secret or sensitive.
+    projectId = findProperty('diluv_project');
+    
+    // Tells DiluvGradle what file to upload. This can be a Java file, a path to a file, or
+    // certain tasks which produce files such as any AbstractArchiveTask.
+    uploadFile = jar;
+    
+    // ======================
+    // === OPTIONAL STUFF ===
+    // ======================
+    
+    // Specifies the version of the file. This is auto-detected from Gradle's project.version
+    // property if you do not specify this yourself.
+    // setVersion('1.3.22');
+    
+    // Specifies game versions that the file is compatible with. DiluvGradle can auto-detect
+    // detect this from ForgeGradle if you don't specify at least one version.
+    addGameVersion('1.12.2');
+    
+    // Specifies a changelog for your file. This can be hard coded or generated at build time.
+    // setChangelog('The changelog string for your file.');
+    
+    // Relations between your file and other files on Diluv can be defined like this.
+    // addDependency(projectId); - A project that your file requires.
+    // addOptionalDependency(projectId); - A project that your file has additional support for.
+    // addIncompatibility(projectId); - A project that your file is not compatible with.
+    
+    // Specifies a mod loader that your file is compatible with. When ForgeGradle is present
+    // the loader 'forge' will be added by default.
+    // addLoader('loadername');
+    
+    // Defines the type of release this file is. This is 'alpha' by default.
+    // Accepts 'alpha', 'beta', and 'release'.
+    // setReleaseType('beta');
+    
+    // Changes the API URL that DiluvGradle uses to authenticate and upload the file to. This
+    // is primarily intended for debugging.
+    apiURL = findProperty('diluv_api');
+}
