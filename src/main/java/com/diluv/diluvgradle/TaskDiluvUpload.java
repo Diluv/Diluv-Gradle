@@ -71,7 +71,7 @@ public class TaskDiluvUpload extends DefaultTask {
     public String projectId;
     
     /**
-     * The API token used to communicate with Diluv. Make sure you keep this public!
+     * The API token used to communicate with Diluv. Make sure you keep this private!
      */
     public String token;
     
